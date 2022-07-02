@@ -29,31 +29,31 @@ namespace LcmsWebApi.Controllers;
         [HttpGet("test03")]
         public async Task<IActionResult> test03([FromQuery]S3Context s3) {
             MemoryStream stream = new MemoryStream();
-        RegionEndpoint region = RegionEndpoint.APSoutheast1;
-        SessionAWSCredentials tempCredentials = await GetObject.GetTemporaryCredentialsAsync();
-        using (var client = new AmazonS3Client(tempCredentials, region))
-        {
-            var request = new GetObjectRequest
+            RegionEndpoint region = RegionEndpoint.APSoutheast1;
+            SessionAWSCredentials tempCredentials = await GetObject.GetTemporaryCredentialsAsync();
+            using (var client = new AmazonS3Client(tempCredentials, region))
             {
-                BucketName = s3.bucketname,
-                           Key = s3.filename
-            };
-        using (var getObjectResponse = await client.GetObjectAsync(request))
-        {
-            using (var responseStream = getObjectResponse.ResponseStream)
-            {
-                await responseStream.CopyToAsync(stream);
-                stream.Position = 0;
-            }
-        }
-        }
-
-        Response.Headers.Add("Content-Disposition", new ContentDisposition
+                var request = new GetObjectRequest
                 {
-                FileName = s3.filename,
-                Inline = true // false = prompt the user for downloading, true = browser to try to show the file inline
-                }.ToString());
-        return File(stream, "image/jpeg");
+                    BucketName = s3.bucketname,
+                            Key = s3.filename
+                };
+            using (var getObjectResponse = await client.GetObjectAsync(request))
+            {
+                using (var responseStream = getObjectResponse.ResponseStream)
+                {
+                    await responseStream.CopyToAsync(stream);
+                    stream.Position = 0;
+                }
+            }
+            }
+
+            Response.Headers.Add("Content-Disposition", new ContentDisposition
+                    {
+                    FileName = s3.filename,
+                    Inline = true // false = prompt the user for downloading, true = browser to try to show the file inline
+                    }.ToString());
+            return File(stream, "image/jpeg");
 
         }
         [HttpGet("test02")]
@@ -115,20 +115,28 @@ class GetObject
 
         public static async Task<SessionAWSCredentials> GetTemporaryCredentialsAsync()
         {
+            
             using (var stsClient = new AmazonSecurityTokenServiceClient())
-            {
-                var getSessionTokenRequest = new GetSessionTokenRequest
+            {   
+                var path = Environment.GetEnvironmentVariable("AWS_WEB_IDENTITY_TOKEN_FILE");
+                var token = System.IO.File.ReadAllText(path);
+                var arn = Environment.GetEnvironmentVariable("AWS_ROLE_ARN");
+                 Console.WriteLine("Token : "+token);
+                 Console.WriteLine("ARN : "+arn);
+                var assumeRequest = new AssumeRoleWithWebIdentityRequest
                 {
-                    DurationSeconds = 7200 // seconds
+                    WebIdentityToken = token,
+                    RoleArn =  Environment.GetEnvironmentVariable("AWS_ROLE_ARN"),
+                    RoleSessionName = "NetProviderSession",
+                    DurationSeconds = 1200
                 };
 
-                GetSessionTokenResponse sessionTokenResponse =
-                              await stsClient.GetSessionTokenAsync(getSessionTokenRequest);
-
+                var sessionTokenResponse = await stsClient.AssumeRoleWithWebIdentityAsync(assumeRequest);
+                Console.WriteLine("TokenReson : "+ sessionTokenResponse);
                 Credentials credentials = sessionTokenResponse.Credentials;
-                Console.WriteLine(credentials.AccessKeyId);
-                Console.WriteLine(credentials.SecretAccessKey);
-                Console.WriteLine(credentials.SessionToken);
+                Console.WriteLine("AccessKeyId : "+credentials.AccessKeyId);
+                Console.WriteLine("SecretAccessKey :"+ credentials.SecretAccessKey);
+                Console.WriteLine("SessionToken :"+credentials.SessionToken);
 
                 var sessionCredentials =
                     new SessionAWSCredentials(credentials.AccessKeyId,
@@ -147,7 +155,4 @@ public class S3Context
     [FromQuery(Name = "filename")] // Attribute is ignored.
         public string filename { get; set; } = string.Empty;
 }
-
-
-                                                           
 
