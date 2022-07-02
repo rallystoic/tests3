@@ -8,7 +8,7 @@ RUN dotnet publish -c Release -o out
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:6.0
-EXPOSE 80
+EXPOSE 5000
 RUN apt update 
 RUN apt install curl -y && apt install libgdiplus -y
 WORKDIR /app
