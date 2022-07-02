@@ -28,24 +28,10 @@ namespace LcmsWebApi.Controllers;
         }
         [HttpGet("test03")]
         public async Task<IActionResult> test03([FromQuery]S3Context s3) {
+            MemoryStream stream = new MemoryStream();
         RegionEndpoint region = RegionEndpoint.APSoutheast1;
-            AmazonSecurityTokenServiceClient sts = new AmazonSecurityTokenServiceClient();
-            var getSessionTokenRequest = new GetSessionTokenRequest
-            {
-                DurationSeconds = 7200 // seconds
-            };
-
-            GetSessionTokenResponse  gst = await sts.GetSessionTokenAsync(getSessionTokenRequest);
-            Credentials credentials = gst.Credentials;
-
-            _logger.LogInformation( "accessKeyID : " + credentials.AccessKeyId);
-            _logger.LogInformation( "SecretAccessKey : " +credentials.SecretAccessKey);
-            _logger.LogInformation( "SessionToken : " + credentials.SessionToken);
-            _logger.LogInformation("bucketname :" + s3.bucketname );
-            _logger.LogInformation("filename :" + s3.filename );
-                var stream = new MemoryStream();
-            var sessionCredentials = new SessionAWSCredentials(credentials.AccessKeyId, credentials.SecretAccessKey, credentials.SessionToken);
-        using (var client = new AmazonS3Client(sessionCredentials, region))
+        SessionAWSCredentials tempCredentials = await GetObject.GetTemporaryCredentialsAsync();
+        using (var client = new AmazonS3Client(tempCredentials, region))
         {
             var request = new GetObjectRequest
             {
@@ -73,25 +59,7 @@ namespace LcmsWebApi.Controllers;
         [HttpGet("test02")]
         public async Task<IActionResult> test02([FromQuery]S3Context s3) {
         RegionEndpoint region = RegionEndpoint.APSoutheast1;
-            AmazonSecurityTokenServiceClient sts = new AmazonSecurityTokenServiceClient();
-            var getSessionTokenRequest = new GetSessionTokenRequest
-            {
-                DurationSeconds = 7200 // seconds
-            };
-
-            GetSessionTokenResponse  gst = await sts.GetSessionTokenAsync(getSessionTokenRequest);
-            Credentials credentials = gst.Credentials;
-
-            _logger.LogInformation( "accessKeyID : " + credentials.AccessKeyId);
-            _logger.LogInformation( "SecretAccessKey : " +credentials.SecretAccessKey);
-            _logger.LogInformation( "SessionToken : " + credentials.SessionToken);
-            _logger.LogInformation("bucketname :" + s3.bucketname );
-            _logger.LogInformation("filename :" + s3.filename );
-                var stream = new MemoryStream();
-            var sessionCredentials =
-                new SessionAWSCredentials(credentials.AccessKeyId,
-                        credentials.SecretAccessKey,
-                       credentials.SessionToken);
+        SessionAWSCredentials tempCredentials = await GetObject.GetTemporaryCredentialsAsync();
         
           return Ok(s3.filename);
 
@@ -144,6 +112,31 @@ class GetObject
         }
         }
     }
+
+        public static async Task<SessionAWSCredentials> GetTemporaryCredentialsAsync()
+        {
+            using (var stsClient = new AmazonSecurityTokenServiceClient())
+            {
+                var getSessionTokenRequest = new GetSessionTokenRequest
+                {
+                    DurationSeconds = 7200 // seconds
+                };
+
+                GetSessionTokenResponse sessionTokenResponse =
+                              await stsClient.GetSessionTokenAsync(getSessionTokenRequest);
+
+                Credentials credentials = sessionTokenResponse.Credentials;
+                Console.WriteLine(credentials.AccessKeyId);
+                Console.WriteLine(credentials.SecretAccessKey);
+                Console.WriteLine(credentials.SessionToken);
+
+                var sessionCredentials =
+                    new SessionAWSCredentials(credentials.AccessKeyId,
+                                              credentials.SecretAccessKey,
+                                              credentials.SessionToken);
+                return sessionCredentials;
+            }
+        }
 
 }
 public class S3Context
