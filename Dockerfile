@@ -11,6 +11,10 @@ FROM mcr.microsoft.com/dotnet/aspnet:6.0
 EXPOSE 5000
 RUN apt update 
 RUN apt install curl -y && apt install libgdiplus -y
+RUN apt install zip -y 
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+RUN unzip awscliv2.zip
+RUN ./aws/install
 WORKDIR /app
 COPY --from=build /home/tests3/out .
 #ENTRYPOINT ["dotnet", "LcmsWebApi.dll"]
