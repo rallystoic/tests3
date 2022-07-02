@@ -6,6 +6,7 @@ using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Net.Mime;
+using AWSSDK;
 
 
 
@@ -14,8 +15,36 @@ namespace LcmsWebApi.Controllers;
 [Route("[controller]")]
     public class S3Controller : ControllerBase {
         private readonly ILogger<S3Controller> _logger;
-        public S3Controller(ILogger<S3Controller> logger) {
+        IAmazonS3 S3Client { get; set; }
+
+        public S3Controller(ILogger<S3Controller> logger,
+                IAmazonS3 s3Client
+                ) {
             _logger = logger;
+            this.S3Client = s3Client;
+        }
+        [HttpGet("test02")]
+        public async Task<IActionResult> test02([FromQuery]S3Context s3) {
+                var stream = new MemoryStream();
+            var request = new GetObjectRequest
+            {
+                BucketName = s3.bucketname,
+                           Key = s3.filename
+            };
+        using (var getObjectResponse = await S3Client.GetObjectAsync(request)){
+                using (var responseStream = getObjectResponse.ResponseStream){
+                await responseStream.CopyToAsync(stream);
+                stream.Position = 0;
+                }
+        }
+
+                Response.Headers.Add("Content-Disposition", new ContentDisposition
+                {
+                    FileName = s3.filename,
+                    Inline = true // false = prompt the user for downloading, true = browser to try to show the file inline
+                }.ToString());
+            return File(stream, "image/jpeg");
+
         }
 
         [HttpGet("test")]
