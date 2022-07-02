@@ -25,6 +25,8 @@ namespace LcmsWebApi.Controllers;
         }
         [HttpGet("test02")]
         public async Task<IActionResult> test02([FromQuery]S3Context s3) {
+            _logger.LogInformation("bucketname :" + s3.bucketname );
+            _logger.LogInformation("filename :" + s3.filename );
                 var stream = new MemoryStream();
             var request = new GetObjectRequest
             {
