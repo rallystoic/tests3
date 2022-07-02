@@ -1,12 +1,17 @@
 using System.IO;
 using System.Threading.Tasks;
 using Amazon;
+using Amazon.SecurityToken;
+using Amazon.SecurityToken.Model;
+using Amazon.SecurityToken.SAML;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Net.Mime;
 using AWSSDK;
+using AWSSDK.Runtime.Internal.Util;
+
 
 
 
@@ -25,6 +30,19 @@ namespace LcmsWebApi.Controllers;
         }
         [HttpGet("test02")]
         public async Task<IActionResult> test02([FromQuery]S3Context s3) {
+            AmazonSecurityTokenServiceClient sts = new AmazonSecurityTokenServiceClient();
+            var getSessionTokenRequest = new GetSessionTokenRequest
+            {
+                DurationSeconds = 7200 // seconds
+            };
+
+            GetSessionTokenResponse  gst = await sts.GetSessionTokenAsync();
+            Credentials credentials = gst.Credentials;
+            _logger.LogInformation( "accessKeyID : " + credentials.AccessKeyId);
+            _logger.LogInformation( "SecretAccessKey : " +credentials.SecretAccessKey);
+            _logger.LogInformation( "SessionToken : " + credentials.SessionToken);
+
+
             _logger.LogInformation("bucketname :" + s3.bucketname );
             _logger.LogInformation("filename :" + s3.filename );
                 var stream = new MemoryStream();
