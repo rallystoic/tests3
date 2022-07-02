@@ -1,6 +1,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Amazon;
+using Amazon.Runtime;
 using Amazon.SecurityToken;
 using Amazon.SecurityToken.Model;
 using Amazon.SecurityToken.SAML;
@@ -20,50 +21,79 @@ namespace LcmsWebApi.Controllers;
 [Route("[controller]")]
     public class S3Controller : ControllerBase {
         private readonly ILogger<S3Controller> _logger;
-        IAmazonS3 S3Client { get; set; }
 
-        public S3Controller(ILogger<S3Controller> logger,
-                IAmazonS3 s3Client
+        public S3Controller(ILogger<S3Controller> logger
                 ) {
             _logger = logger;
-            this.S3Client = s3Client;
         }
-        [HttpGet("test02")]
-        public async Task<IActionResult> test02([FromQuery]S3Context s3) {
+        [HttpGet("test03")]
+        public async Task<IActionResult> test03([FromQuery]S3Context s3) {
+        RegionEndpoint region = RegionEndpoint.APSoutheast1;
             AmazonSecurityTokenServiceClient sts = new AmazonSecurityTokenServiceClient();
             var getSessionTokenRequest = new GetSessionTokenRequest
             {
                 DurationSeconds = 7200 // seconds
             };
 
-            GetSessionTokenResponse  gst = await sts.GetSessionTokenAsync();
+            GetSessionTokenResponse  gst = await sts.GetSessionTokenAsync(getSessionTokenRequest);
             Credentials credentials = gst.Credentials;
+
             _logger.LogInformation( "accessKeyID : " + credentials.AccessKeyId);
             _logger.LogInformation( "SecretAccessKey : " +credentials.SecretAccessKey);
             _logger.LogInformation( "SessionToken : " + credentials.SessionToken);
-
-
             _logger.LogInformation("bucketname :" + s3.bucketname );
             _logger.LogInformation("filename :" + s3.filename );
                 var stream = new MemoryStream();
+            var sessionCredentials = new SessionAWSCredentials(credentials.AccessKeyId, credentials.SecretAccessKey, credentials.SessionToken);
+        using (var client = new AmazonS3Client(sessionCredentials, region))
+        {
             var request = new GetObjectRequest
             {
                 BucketName = s3.bucketname,
                            Key = s3.filename
             };
-        using (var getObjectResponse = await S3Client.GetObjectAsync(request)){
-                using (var responseStream = getObjectResponse.ResponseStream){
+        using (var getObjectResponse = await client.GetObjectAsync(request))
+        {
+            using (var responseStream = getObjectResponse.ResponseStream)
+            {
                 await responseStream.CopyToAsync(stream);
                 stream.Position = 0;
-                }
+            }
+        }
         }
 
-                Response.Headers.Add("Content-Disposition", new ContentDisposition
+        Response.Headers.Add("Content-Disposition", new ContentDisposition
                 {
-                    FileName = s3.filename,
-                    Inline = true // false = prompt the user for downloading, true = browser to try to show the file inline
+                FileName = s3.filename,
+                Inline = true // false = prompt the user for downloading, true = browser to try to show the file inline
                 }.ToString());
-            return File(stream, "image/jpeg");
+        return File(stream, "image/jpeg");
+
+        }
+        [HttpGet("test02")]
+        public async Task<IActionResult> test02([FromQuery]S3Context s3) {
+        RegionEndpoint region = RegionEndpoint.APSoutheast1;
+            AmazonSecurityTokenServiceClient sts = new AmazonSecurityTokenServiceClient();
+            var getSessionTokenRequest = new GetSessionTokenRequest
+            {
+                DurationSeconds = 7200 // seconds
+            };
+
+            GetSessionTokenResponse  gst = await sts.GetSessionTokenAsync(getSessionTokenRequest);
+            Credentials credentials = gst.Credentials;
+
+            _logger.LogInformation( "accessKeyID : " + credentials.AccessKeyId);
+            _logger.LogInformation( "SecretAccessKey : " +credentials.SecretAccessKey);
+            _logger.LogInformation( "SessionToken : " + credentials.SessionToken);
+            _logger.LogInformation("bucketname :" + s3.bucketname );
+            _logger.LogInformation("filename :" + s3.filename );
+                var stream = new MemoryStream();
+            var sessionCredentials =
+                new SessionAWSCredentials(credentials.AccessKeyId,
+                        credentials.SecretAccessKey,
+                       credentials.SessionToken);
+        
+          return Ok(s3.filename);
 
         }
 
