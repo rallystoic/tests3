@@ -12,6 +12,7 @@ EXPOSE 5000
 RUN apt update 
 RUN apt install curl -y && apt install libgdiplus -y
 RUN apt install zip -y 
+RUN apt install jq -y
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 RUN unzip awscliv2.zip
 RUN ./aws/install
